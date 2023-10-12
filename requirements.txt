@@ -1,9 +1,5 @@
 pandas
-echo "## active_line 2 ##"
 numpy
-echo "## active_line 3 ##"
 torch
-echo "## active_line 4 ##"
 transformers
-echo "## active_line 5 ##"
 pickle
