@@ -1,0 +1,16 @@
+
+{
+    "name": "Python 3.8 & Jupyter",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "..",
+        "args": {}
+    },
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt",
+        "seccomp=unconfined"
+    ], 
+    "settings": {},
+    "extensions": ["ms-python.python"]
+}
