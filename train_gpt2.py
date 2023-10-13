@@ -17,11 +17,11 @@ logging.basicConfig(
 # Define the command-line arguments
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--data_path', default='/Users/mehulsangham/GH Projects/framenet_model/processed_framenet_data.pkl', help='Path to the processed FrameNet data.')
-parser.add_argument('--epochs', type=int, default=1, help='Number of training epochs.')
-parser.add_argument('--lr', type=float, default=0.00001, help='Learning rate for ADAM.')
-parser.add_argument('--eps', type=float, default=0.00001, help='Epsilon for ADAM.')
-args = parser.parse_args()
+args.data_path = '/Users/mehulsangham/GH Projects/framenet_model/processed_framenet_data.pkl'
+args.epochs = 1
+args.lr = 0.00001
+args.eps = 0.00001
+args = argparse.Namespace()
 
 # FrameNet Data Loader
 class TextDataset(Dataset):
@@ -45,7 +45,24 @@ def tokenize_data(tokenizer, data: pd.DataFrame):
     return [tokenizer.encode(x, add_special_tokens=True) for x in data["definition"].tolist()]
 
 # Train the GPT-2 model
-def train(model, tokenized_data, device, epochs, lr, eps):
+def initialize_model_optimizer(model, lr, eps, device):
+    model = model.to(device)
+    model.train()
+    optimizer = AdamW(model.parameters(), lr=lr, eps=eps)
+    return model, optimizer
+
+def perform_training_step(model, optimizer, batch, device):
+    inputs = torch.tensor(batch).unsqueeze(0).to(device)
+    outputs = model(inputs, labels=inputs)
+    loss = outputs[0]
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    optimizer.step()
+    optimizer.zero_grad()
+    return loss.item()
+
+
+def train(epoch, model, optimizer, dataloader, device):
     model = model.to(device)
     model.train()
 
@@ -54,7 +71,7 @@ def train(model, tokenized_data, device, epochs, lr, eps):
     max_grad_norm = 1.0
 
     for epoch in range(epochs):
-        logging.info(f'Starting epoch {epoch + 1}/{epochs}.')
+        print(f'Starting epoch {epoch + 1}/{epochs}.')
         # Data loader
         train_dataloader = DataLoader(TextDataset(tokenized_data), batch_size=1, shuffle=True)
         for step, batch in enumerate(train_dataloader):
@@ -66,15 +83,15 @@ def train(model, tokenized_data, device, epochs, lr, eps):
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
             optimizer.zero_grad()
-        logging.info(f'Finished epoch {epoch + 1}/{epochs}. Loss: {loss.item()}')
+        print(f'Finished epoch {epoch + 1}/{epochs}. Loss: {loss.item()}')
 
-    # Save the model
-    torch.save(model.state_dict(), "fine_tuned_gpt2.pt")
-    logging.info('Model saved')
+    def save_model(model, path):
+        torch.save(model.state_dict(), path)
+    print('Model saved')
 
 # Main function
 if __name__ == "__main__":
-    logging.info('Running GPT-2 training script')
+    print('Running GPT-2 training script')
 
     data = load_and_process_data(args.data_path)
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
@@ -82,8 +99,8 @@ if __name__ == "__main__":
     model = GPT2LMHeadModel.from_pretrained("gpt2")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logging.info(f'Training model on {device}')
+    print(f'Training model on {device}')
 
     train(model, tokenized_data, device, args.epochs, args.lr, args.eps)
 
-    logging.info('Training completed')
+    print('Training completed')
