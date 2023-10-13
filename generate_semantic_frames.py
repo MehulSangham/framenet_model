@@ -21,22 +21,17 @@ def apply_model(input, model):
     return outputs
 
 # Collect semantic frames
-# This function strongly depends on the nature of the model's output
 def collect_frames(outputs, tokenizer):
     frames = []
     for output in outputs:
         decoded_output = tokenizer.decode(output, skip_special_tokens=True)
-        
-        # Add some logic here to turn the decoded output into frame name and frame description
-        # Let's say we just add the whole output as a frame name with no description
-        frame_name = decoded_output
-        frame_description = ''
-        frames.append({'Name': frame_name, 'Description': frame_description})
+        # Simply collect the complete output text as a semantic frame
+        frames.append(decoded_output)
     return frames
 
 # Display the frames in a table format
 def display_as_table(frames):
-    df = pd.DataFrame(frames)
+    df = pd.DataFrame(frames, columns=['Semantic Frames'])
     return df
 
 # Replace with actual text and model path
