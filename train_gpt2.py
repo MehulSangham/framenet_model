@@ -1,116 +1,143 @@
 
+import numpy as np
+import torch
+from torch.utils.data import DataLoader
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+from transformers import AdamW
 import os
-# Argument parsing
 import argparse
-parser = argparse.ArgumentParser(description='Train GPT-2 for Semantic Frame Induction')
-parser.add_argument('--data_path', type=str, default='processed_framenet_data.pkl', help='Path to pickled FrameNet data')
-parser.add_argument('--epochs', type=int, default=1, help='Number of epochs')
-parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
-parser.add_argument('--eps', type=float, default=1e-8, help='Epsilon for Adam optimizer')
-parser.add_argument('--model_path', type=str, default='gpt2_trained.pth', help='Path to save the trained model')
+
+# Argument parsing
+parser = argparse.ArgumentParser(description='Train GPT-2 model')
+parser.add_argument('--data_path', type=str, default='./framenet_data.pkl', help='Path to FrameNet data')
+parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
+parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
+parser.add_argument('--eps', type=float, default=1e-8, help='Epsilon for AdamW optimizer')
+parser.add_argument('--model_dir', type=str, default='./model', help='Directory to save the trained model')
 args = parser.parse_args()
 
-import pandas as pd
-import torch
-from transformers import GPT2Tokenizer, GPT2LMHeadModel, AdamW
-from torch.utils.data import Dataset, DataLoader
-import pickle
-import argparse
-import logging
+# Load FrameNet data
+def load_and_process_data(data_path):
+    """Load and process FrameNet data.
 
-# Initialize the logger
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+    Args:
+        data_path (str): Path to FrameNet data.
 
-# Define the command-line arguments
-parser = argparse.ArgumentParser()
-
-data_path = '/Users/mehulsangham/GH Projects/framenet_model/processed_framenet_data.pkl'
-epochs = 1
-lr = 0.00001
-eps = 0.00001
-args = argparse.Namespace()
-
-# FrameNet Data Loader
-class TextDataset(Dataset):
-    def __init__(self, texts):
-        self.texts = texts
-
-    def __len__(self):
-        return len(self.texts)
-
-    def __getitem__(self, item):
-        return self.texts[item]
-
-# Function to load and process data
-def load_and_process_data(data_path: str) -> pd.DataFrame:
-    with open(data_path, "rb") as file:
-        data = pickle.load(file)
+    Returns:
+        A pandas DataFrame of the loaded and processed data.
+    """
+    with open(data_path, 'rb') as f:
+        data = pickle.load(f)
     return data
 
 # Tokenize data
-def tokenize_data(tokenizer, data: pd.DataFrame):
-    return [tokenizer.encode(x, add_special_tokens=True) for x in data["definition"].tolist()]
+def tokenize_data(tokenizer, data):
+    """Tokenize text data.
 
-# Train the GPT-2 model
-def initialize_model_optimizer(model, lr, eps, device):
-    model = model.to(device)
-    model.train()
+    Args:
+        tokenizer: Pretrained GPT-2 tokenizer.
+        data: DataFrame containing text data.
+
+    Returns:
+        A list of tokenized data.
+    """
+    tokenized_data = []
+    for text in data['text']:
+        tokenized_text = tokenizer.encode(text)
+        tokenized_data.append(tokenized_text)
+    return tokenized_data
+
+# Prepare model
+def prepare_model(lr, eps):
+    """Load GPT-2 model and configure optimizer.
+
+    Args:
+        lr (float): Learning rate.
+        eps (float): Epsilon for AdamW optimizer.
+
+    Returns:
+        model: GPT-2 model.
+        optimizer: AdamW optimizer.
+    """
+    model = GPT2LMHeadModel.from_pretrained('gpt2')
     optimizer = AdamW(model.parameters(), lr=lr, eps=eps)
     return model, optimizer
 
+# Perform a single training step
 def perform_training_step(model, optimizer, batch, device):
-    inputs = torch.tensor(batch).unsqueeze(0).to(device)
-    outputs = model(inputs, labels=inputs)
+    """Perform a single training step.
+
+    Args:
+        model: GPT-2 model.
+        optimizer: AdamW optimizer.
+        batch: Batch of data for training.
+        device: Device to train on.
+    """
+    model.zero_grad()
+    outputs = model(batch, labels=batch)
     loss = outputs[0]
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
     optimizer.step()
-    optimizer.zero_grad()
     return loss.item()
 
+# Train the model over epochs
+def train(epochs, model, optimizer, dataloader, device):
+    """Train the model over epochs.
 
-def train(epoch, model, optimizer, dataloader, device):
+    Args:
+        epochs (int): Number of epochs.
+        model: GPT-2 model.
+        optimizer: AdamW optimizer.
+        dataloader: DataLoader for the training data.
+        device: Device to train on.
+    """
     model = model.to(device)
-    model.train()
-
-    optimizer = AdamW(model.parameters(), lr=lr, eps=eps)
-    gradient_accumulation_steps = 1
-    max_grad_norm = 1.0
-
     for epoch in range(epochs):
-        print(f'Starting epoch {epoch + 1}/{epochs}.')
-        # Data loader
-        train_dataloader = DataLoader(TextDataset(tokenized_data), batch_size=1, shuffle=True)
-        for step, batch in enumerate(train_dataloader):
-            inputs = torch.tensor(batch).unsqueeze(0).to(device)
-            outputs = model(inputs, labels=inputs)
-            loss = outputs[0]
-            loss = loss / gradient_accumulation_steps
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-            optimizer.step()
-            optimizer.zero_grad()
-        print(f'Finished epoch {epoch + 1}/{epochs}. Loss: {loss.item()}')
+        print(f'Starting epoch {epoch+1}')
+        total_loss = 0
+        for batch in dataloader:
+            batch = batch.to(device)
+            loss = perform_training_step(model, optimizer, batch, device)
+            total_loss += loss
+        print(f'Epoch: {epoch+1}, Loss: {total_loss}')
 
-    def save_model(model, path):
-        torch.save(model.state_dict(), path)
-    print('Model saved')
+# Save the trained model
+def save_model(model, model_dir):
+    """Save the trained model to a directory.
 
-# Main function
-if __name__ == "__main__":
-    print('Running GPT-2 training script')
+    Args:
+        model: Trained GPT-2 model.
+        model_dir (str): Directory to save the trained model.
+    """
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    print(f'Saving model to {model_dir}')
+    model.save_pretrained(model_dir)
 
-    data = load_and_process_data(data_path)
-    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+# Load and process data
+if __name__ == '__main__':
+    print('Loading and processing data...')
+    data = load_and_process_data(args.data_path)
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+
+    # Tokenize the data
+    print('Tokenizing data...')
     tokenized_data = tokenize_data(tokenizer, data)
-    model = GPT2LMHeadModel.from_pretrained("gpt2")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f'Training model on {device}')
+    # Prepare datasets and data loader
+    BATCH_SIZE = 8
+    data = np.array(tokenized_data, dtype=object)
+    dataloader = DataLoader(data, batch_size=BATCH_SIZE, num_workers=2)
 
-    train(model, tokenized_data, device, epochs, lr, eps)
+    # Prepare model
+    print('Preparing model...')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model, optimizer = prepare_model(args.lr, args.eps)
 
-    print('Training completed')
+    # Train the model
+    print(f'Training model on {device} for {args.epochs} epochs...')
+    train(args.epochs, model, optimizer, dataloader, device)
+
+    # Save the trained model
+    save_model(model, args.model_dir)
+    print('Training and saving model process completed.')
