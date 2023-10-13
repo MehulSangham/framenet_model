@@ -1,5 +1,15 @@
 
 import os
+# Argument parsing
+import argparse
+parser = argparse.ArgumentParser(description='Train GPT-2 for Semantic Frame Induction')
+parser.add_argument('--data_path', type=str, default='processed_framenet_data.pkl', help='Path to pickled FrameNet data')
+parser.add_argument('--epochs', type=int, default=1, help='Number of epochs')
+parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
+parser.add_argument('--eps', type=float, default=1e-8, help='Epsilon for Adam optimizer')
+parser.add_argument('--model_path', type=str, default='gpt2_trained.pth', help='Path to save the trained model')
+args = parser.parse_args()
+
 import pandas as pd
 import torch
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, AdamW
@@ -17,10 +27,10 @@ logging.basicConfig(
 # Define the command-line arguments
 parser = argparse.ArgumentParser()
 
-args.data_path = '/Users/mehulsangham/GH Projects/framenet_model/processed_framenet_data.pkl'
-args.epochs = 1
-args.lr = 0.00001
-args.eps = 0.00001
+data_path = '/Users/mehulsangham/GH Projects/framenet_model/processed_framenet_data.pkl'
+epochs = 1
+lr = 0.00001
+eps = 0.00001
 args = argparse.Namespace()
 
 # FrameNet Data Loader
@@ -93,7 +103,7 @@ def train(epoch, model, optimizer, dataloader, device):
 if __name__ == "__main__":
     print('Running GPT-2 training script')
 
-    data = load_and_process_data(args.data_path)
+    data = load_and_process_data(data_path)
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
     tokenized_data = tokenize_data(tokenizer, data)
     model = GPT2LMHeadModel.from_pretrained("gpt2")
@@ -101,6 +111,6 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'Training model on {device}')
 
-    train(model, tokenized_data, device, args.epochs, args.lr, args.eps)
+    train(model, tokenized_data, device, epochs, lr, eps)
 
     print('Training completed')
