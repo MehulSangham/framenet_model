@@ -1,15 +1,27 @@
-# FrameNet Fine-Tuning for GPT-2
 
-This repository contains scripts for fine-tuning the GPT-2 model on FrameNet data.
+# FrameNet Model
 
-## Description
+This repository contains scripts and files for a project aimed to fine-tune a GPT-2 model for the specific task of identifying semantic frames in text data. The input to this process can be any amount of text data in multiple formats, and the output will be the identified semantic frames in the corpus.
 
-The scripts provided in this project are designed to preprocess FrameNet data and fine-tune a GPT-2 model using this data. The main goal is to provide a starting point for training a GPT-2 model to generate text based on FrameNet linguistic frames.
+## Contents
 
-## Repository Structure
+The repository contains the following key files:
 
-- `processed_framenet_data.pkl`: This file contains the preprocessed FrameNet data.
+- `data_prep.py`: This Python script is responsible for preparing the text data to be fed into the GPT-2 model.
 - `train_gpt2.py`: This Python script handles loading the processed data, preparing it for the GPT-2 model, and fine-tuning the GPT-2 model on the data.
+- `Jupyter Notebook`: TBD
+
+## Jupyter Notebook
+
+TBD
+
+## Logging
+
+TBD
+
+## Training Process
+
+TBD
 
 ## Requirements
 
@@ -50,3 +62,14 @@ jupyter notebook
 ```
 
 Additionally, remember to rebuild the codespace whenever you make changes to the Dockerfile or devcontainer.json. You can do this through the Command Palette (F1 or CMD + Shift + P) by typing 'Rebuild Container'.
+
+echo "## active_line 2 ##"
+## load_and_process_framenet.py
+echo "## active_line 3 ##"
+
+echo "## active_line 4 ##"
+The script `load_and_process_framenet.py` is used to load and process FrameNet data using the nltk.corpus.framenet module. Here is a detailed explanation of the script components and process flow:
+echo "## active_line 5 ##"
+
+echo "## active_line 6 ##"
+1. **Argument Parsing**: The argparse module is used to manage the script
